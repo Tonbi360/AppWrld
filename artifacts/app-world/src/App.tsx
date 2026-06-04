@@ -9,6 +9,7 @@ import AppDetail from "@/pages/app-detail";
 import Submit from "@/pages/submit";
 import FeedbackPage from "@/pages/feedback";
 import Admin from "@/pages/admin";
+import DevPortal from "@/pages/dev";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/submit" component={Submit} />
       <Route path="/feedback" component={FeedbackPage} />
       <Route path="/admin" component={Admin} />
+      <Route path="/dev" component={DevPortal} />
       <Route component={NotFound} />
     </Switch>
   );

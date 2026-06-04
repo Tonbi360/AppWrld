@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { reviewsTable, appsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import {
   ListReviewsQueryParams,
   CreateReviewBody,
@@ -37,15 +37,20 @@ router.post("/reviews", async (req, res) => {
   }
 
   const { vote, appId } = parsed.data;
-  const thumbCol = vote === "up" ? appsTable.thumbsUp : appsTable.thumbsDown;
 
   const [review] = await db.insert(reviewsTable).values(parsed.data).returning();
-  // increment thumb count on app
-  await db
-    .update(appsTable)
-    .set({ [thumbCol.name]: db.$with("ignored").as(db.select()) } as never)
-    .where(eq(appsTable.id, appId))
-    .catch(() => null);
+
+  if (vote === "up") {
+    await db
+      .update(appsTable)
+      .set({ thumbsUp: sql`${appsTable.thumbsUp} + 1` })
+      .where(eq(appsTable.id, appId));
+  } else {
+    await db
+      .update(appsTable)
+      .set({ thumbsDown: sql`${appsTable.thumbsDown} + 1` })
+      .where(eq(appsTable.id, appId));
+  }
 
   res.status(201).json(review);
 });
