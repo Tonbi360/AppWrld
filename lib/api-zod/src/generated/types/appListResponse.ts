@@ -5,7 +5,11 @@
  * AppWorld API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { App } from './app';
 
-export interface HealthStatus {
-  status: string;
+export interface AppListResponse {
+  apps: App[];
+  total: number;
+  page: number;
+  limit: number;
 }

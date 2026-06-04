@@ -3,20 +3,34 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AppWorld API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: apps
+    description: PWA app listings
+  - name: reviews
+    description: User reviews and feedback
+  - name: submissions
+    description: Developer app submissions
+  - name: logbook
+    description: Developer logbook entries
+  - name: feedback
+    description: Platform feedback and suggestions
+  - name: admin
+    description: Admin curation dashboard
+  - name: stats
+    description: Platform statistics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +38,414 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /apps:
+    get:
+      operationId: listApps
+      tags: [apps]
+      summary: List approved PWA apps
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, trending, top-rated]
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of apps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppListResponse"
+
+  /apps/featured:
+    get:
+      operationId: getFeaturedApps
+      tags: [apps]
+      summary: Get featured/pinned apps
+      responses:
+        "200":
+          description: Featured apps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/App"
+
+  /apps/stats-summary:
+    get:
+      operationId: getAppStatsSummary
+      tags: [stats]
+      summary: Platform-wide stats summary
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+
+  /apps/{id}:
+    get:
+      operationId: getApp
+      tags: [apps]
+      summary: Get a single app by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: App detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppDetail"
+        "404":
+          description: Not found
+
+  /apps/{id}/track:
+    post:
+      operationId: trackAppEvent
+      tags: [apps]
+      summary: Track an anonymous event (view, tryout, install)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackEventInput"
+      responses:
+        "200":
+          description: Tracked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /apps/{id}/check-iframe:
+    get:
+      operationId: checkIframeSupport
+      tags: [apps]
+      summary: Check if an app allows iframe embedding
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Iframe support check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IframeCheckResult"
+
+  /reviews:
+    get:
+      operationId: listReviews
+      tags: [reviews]
+      summary: List reviews for an app
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reviews list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Submit a thumbs up/down review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewInput"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /reviews/{id}/reply:
+    post:
+      operationId: replyToReview
+      tags: [reviews]
+      summary: Developer replies to a review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyInput"
+      responses:
+        "200":
+          description: Reply added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /submissions:
+    post:
+      operationId: submitApp
+      tags: [submissions]
+      summary: Developer submits a new PWA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppSubmissionInput"
+      responses:
+        "201":
+          description: Submission received
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /submissions/scrape-manifest:
+    post:
+      operationId: scrapeManifest
+      tags: [submissions]
+      summary: Scrape manifest.json from a URL to auto-fill submission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrapeManifestInput"
+      responses:
+        "200":
+          description: Manifest data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManifestData"
+
+  /logbook:
+    get:
+      operationId: listLogbookEntries
+      tags: [logbook]
+      summary: List developer logbook entries for an app
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Logbook entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LogbookEntry"
+    post:
+      operationId: createLogbookEntry
+      tags: [logbook]
+      summary: Developer posts a logbook/changelog entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogbookEntryInput"
+      responses:
+        "201":
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogbookEntry"
+
+  /feedback:
+    get:
+      operationId: listFeedback
+      tags: [feedback]
+      summary: List platform feedback submissions
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [complaint, suggestion, bug, praise]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, reviewed, resolved]
+      responses:
+        "200":
+          description: Feedback list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Feedback"
+    post:
+      operationId: submitFeedback
+      tags: [feedback]
+      summary: Submit feedback or suggestion about the platform
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackInput"
+      responses:
+        "201":
+          description: Feedback submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feedback"
+
+  /admin/queue:
+    get:
+      operationId: getAdminQueue
+      tags: [admin]
+      summary: Get apps pending manual review
+      responses:
+        "200":
+          description: Review queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+
+  /admin/submissions/{id}/approve:
+    post:
+      operationId: approveSubmission
+      tags: [admin]
+      summary: Approve a submission to go live
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/submissions/{id}/reject:
+    post:
+      operationId: rejectSubmission
+      tags: [admin]
+      summary: Reject a submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectInput"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/feedback/{id}/status:
+    patch:
+      operationId: updateFeedbackStatus
+      tags: [admin]
+      summary: Update feedback status (reviewed/resolved)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackStatusUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feedback"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Admin dashboard stats
+      responses:
+        "200":
+          description: Admin stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +456,350 @@ components:
       required:
         - status
 
+    App:
+      type: object
+      required: [id, name, description, url, iconUrl, category, lighthouseScore, views, tryouts, installs, thumbsUp, thumbsDown, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        uvp:
+          type: ["string", "null"]
+        url:
+          type: string
+        iconUrl:
+          type: ["string", "null"]
+        brandColor:
+          type: ["string", "null"]
+        category:
+          type: string
+        lighthouseScore:
+          type: integer
+        hasOfflineSupport:
+          type: boolean
+        hasPushNotifications:
+          type: boolean
+        isInstallable:
+          type: boolean
+        views:
+          type: integer
+        tryouts:
+          type: integer
+        installs:
+          type: integer
+        thumbsUp:
+          type: integer
+        thumbsDown:
+          type: integer
+        isFeatured:
+          type: boolean
+        isBoosted:
+          type: boolean
+        isVerifiedDev:
+          type: boolean
+        status:
+          type: string
+          enum: [pending, approved, rejected, hidden]
+        createdAt:
+          type: string
+          format: date-time
+
+    AppDetail:
+      allOf:
+        - $ref: "#/components/schemas/App"
+        - type: object
+          properties:
+            recentReviews:
+              type: array
+              items:
+                $ref: "#/components/schemas/Review"
+            recentLogbook:
+              type: array
+              items:
+                $ref: "#/components/schemas/LogbookEntry"
+
+    AppListResponse:
+      type: object
+      required: [apps, total, page, limit]
+      properties:
+        apps:
+          type: array
+          items:
+            $ref: "#/components/schemas/App"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    Review:
+      type: object
+      required: [id, appId, vote, comment, isBugReport, ghostName, createdAt]
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        vote:
+          type: string
+          enum: [up, down]
+        comment:
+          type: string
+        isBugReport:
+          type: boolean
+        ghostName:
+          type: string
+        developerReply:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    ReviewInput:
+      type: object
+      required: [appId, vote, comment, ghostName]
+      properties:
+        appId:
+          type: integer
+        vote:
+          type: string
+          enum: [up, down]
+        comment:
+          type: string
+        isBugReport:
+          type: boolean
+        ghostName:
+          type: string
+
+    ReplyInput:
+      type: object
+      required: [reply]
+      properties:
+        reply:
+          type: string
+
+    Submission:
+      type: object
+      required: [id, url, name, description, uvp, status, lighthouseScore, createdAt]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        uvp:
+          type: string
+        iconUrl:
+          type: ["string", "null"]
+        brandColor:
+          type: ["string", "null"]
+        category:
+          type: string
+        lighthouseScore:
+          type: integer
+        hasManifest:
+          type: boolean
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        rejectionReason:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    AppSubmissionInput:
+      type: object
+      required: [url, uvp, category]
+      properties:
+        url:
+          type: string
+        uvp:
+          type: string
+        category:
+          type: string
+        name:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        iconUrl:
+          type: ["string", "null"]
+        brandColor:
+          type: ["string", "null"]
+
+    ScrapeManifestInput:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+
+    ManifestData:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        iconUrl:
+          type: ["string", "null"]
+        brandColor:
+          type: ["string", "null"]
+        hasManifest:
+          type: boolean
+        lighthouseScore:
+          type: integer
+        isInstallable:
+          type: boolean
+
+    LogbookEntry:
+      type: object
+      required: [id, appId, content, createdAt]
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    LogbookEntryInput:
+      type: object
+      required: [appId, content]
+      properties:
+        appId:
+          type: integer
+        content:
+          type: string
+
+    TrackEventInput:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [view, tryout, install]
+
+    IframeCheckResult:
+      type: object
+      required: [supportsIframe, url]
+      properties:
+        supportsIframe:
+          type: boolean
+        url:
+          type: string
+
+    Feedback:
+      type: object
+      required: [id, type, message, senderType, status, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [complaint, suggestion, bug, praise]
+        message:
+          type: string
+        senderType:
+          type: string
+          enum: [user, developer]
+        senderName:
+          type: ["string", "null"]
+        contactEmail:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [open, reviewed, resolved]
+        createdAt:
+          type: string
+          format: date-time
+
+    FeedbackInput:
+      type: object
+      required: [type, message, senderType]
+      properties:
+        type:
+          type: string
+          enum: [complaint, suggestion, bug, praise]
+        message:
+          type: string
+        senderType:
+          type: string
+          enum: [user, developer]
+        senderName:
+          type: ["string", "null"]
+        contactEmail:
+          type: ["string", "null"]
+
+    FeedbackStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, reviewed, resolved]
+
+    PlatformStats:
+      type: object
+      required: [totalApps, totalReviews, totalInstalls, newThisWeek]
+      properties:
+        totalApps:
+          type: integer
+        totalReviews:
+          type: integer
+        totalInstalls:
+          type: integer
+        newThisWeek:
+          type: integer
+        topCategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryCount"
+
+    CategoryCount:
+      type: object
+      required: [category, count]
+      properties:
+        category:
+          type: string
+        count:
+          type: integer
+
+    AdminStats:
+      type: object
+      required: [pendingReviews, totalApps, openFeedback, approvedThisWeek]
+      properties:
+        pendingReviews:
+          type: integer
+        totalApps:
+          type: integer
+        openFeedback:
+          type: integer
+        approvedThisWeek:
+          type: integer
+
+    RejectInput:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: ["string", "null"]

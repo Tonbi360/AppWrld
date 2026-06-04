@@ -5,7 +5,8 @@
  * AppWorld API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { TrackEventInputEvent } from './trackEventInputEvent';
 
-export interface HealthStatus {
-  status: string;
+export interface TrackEventInput {
+  event: TrackEventInputEvent;
 }
