@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@/lib/use-navigate";
+import { addRecentlyViewed } from "@/lib/recently-viewed";
 
 function ScoreRing({ score }: { score: number }) {
   const r = 20;
@@ -105,6 +106,19 @@ export default function AppDetail() {
   const { data: app, isLoading } = useGetApp(id, {
     query: { enabled: !!id && !isNaN(id), queryKey: getGetAppQueryKey(id) },
   });
+
+  useEffect(() => {
+    if (app) {
+      addRecentlyViewed({
+        id: app.id,
+        name: app.name,
+        category: app.category,
+        iconUrl: app.iconUrl,
+        brandColor: app.brandColor,
+        lighthouseScore: app.lighthouseScore,
+      });
+    }
+  }, [app?.id]);
   const { data: reviews } = useListReviews(
     { appId: id },
     { query: { enabled: !!id, queryKey: getListReviewsQueryKey({ appId: id }) } }
