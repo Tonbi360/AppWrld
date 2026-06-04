@@ -3,24 +3,31 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import Home from "@/pages/home";
+import Browse from "@/pages/browse";
+import AppDetail from "@/pages/app-detail";
+import Submit from "@/pages/submit";
+import FeedbackPage from "@/pages/feedback";
+import Admin from "@/pages/admin";
 
-const queryClient = new QueryClient();
-
-function Home() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Replit Agent is building...</h1>
-        <p className="mt-2 text-sm text-gray-600">Your app will appear here once it's ready.</p>
-      </div>
-    </div>
-  );
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+});
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/browse" component={Browse} />
+      <Route path="/app/:id" component={AppDetail} />
+      <Route path="/submit" component={Submit} />
+      <Route path="/feedback" component={FeedbackPage} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );
