@@ -11,7 +11,7 @@ export default function Submit() {
   const [url, setUrl] = useState("");
   const [scraped, setScraped] = useState<{
     name?: string | null; description?: string | null; iconUrl?: string | null; brandColor?: string | null;
-    hasManifest: boolean; lighthouseScore: number;
+    hasManifest?: boolean; lighthouseScore?: number;
   } | null>(null);
   const [form, setForm] = useState({ name: "", description: "", uvp: "", category: "Productivity" });
   const [error, setError] = useState("");

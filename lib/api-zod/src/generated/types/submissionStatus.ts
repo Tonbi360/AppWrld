@@ -10,7 +10,13 @@ export type SubmissionStatus = typeof SubmissionStatus[keyof typeof SubmissionSt
 
 
 export const SubmissionStatus = {
-  pending: 'pending',
-  approved: 'approved',
+  received: 'received',
+  under_review: 'under_review',
+  needs_info: 'needs_info',
+  confirmed: 'confirmed',
+  in_progress: 'in_progress',
+  fixed: 'fixed',
+  released: 'released',
   rejected: 'rejected',
+  duplicate: 'duplicate',
 } as const;

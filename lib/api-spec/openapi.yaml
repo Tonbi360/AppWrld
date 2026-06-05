@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Browser and mobile authentication endpoints
   - name: apps
     description: PWA app listings
   - name: reviews
@@ -24,6 +26,10 @@ tags:
     description: Admin curation dashboard
   - name: stats
     description: Platform statistics
+  - name: notifications
+    description: In-app notification management
+  - name: users
+    description: User management
 
 paths:
   /healthz:
@@ -446,8 +452,363 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminStats"
 
+  /admin/users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users (admin only)
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserProfile"
+
+  /admin/users/{id}/role:
+    patch:
+      operationId: updateUserRole
+      tags: [users]
+      summary: Update a user's role (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoleInput"
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/user:
+    get:
+      tags: [auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserEnvelope"
+
+  /login:
+    get:
+      tags: [auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the OIDC authorization endpoint.
+
+  /callback:
+    get:
+      tags: [auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to returnTo path on success.
+
+  /logout:
+    get:
+      tags: [auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "302":
+          description: Redirect to the OIDC provider logout URL.
+
+  /mobile-auth/token-exchange:
+    post:
+      tags: [auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MobileTokenExchangeRequest"
+      responses:
+        "200":
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileTokenExchangeSuccess"
+        "400":
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Token did not contain usable claims.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Token exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /mobile-auth/logout:
+    post:
+      tags: [auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+      responses:
+        "200":
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutSuccess"
+
+  /notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      summary: Get notifications for the authenticated user
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /notifications/{id}/read:
+    patch:
+      tags: [notifications]
+      operationId: markNotificationRead
+      summary: Mark a notification as read
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /notifications/clear:
+    delete:
+      tags: [notifications]
+      operationId: clearNotifications
+      summary: Clear all notifications for the authenticated user
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Notifications cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token — `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
+
   schemas:
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl, role]
+      properties:
+        id:
+          type: string
+        email:
+          type: ["string", "null"]
+          format: email
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        profileImageUrl:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [user, developer, admin]
+
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/AuthUser"
+            - type: "null"
+
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    Notification:
+      type: object
+      required: [id, userId, title, message, type, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [submission_update, review_reply, app_approved, system]
+        isRead:
+          type: boolean
+        link:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    UserProfile:
+      type: object
+      required: [id, role, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        profileImageUrl:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [user, developer, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [user, developer, admin]
+
     HealthStatus:
       type: object
       properties:
@@ -608,7 +969,7 @@ components:
           type: boolean
         status:
           type: string
-          enum: [pending, approved, rejected]
+          enum: [received, under_review, needs_info, confirmed, in_progress, fixed, released, rejected, duplicate]
         rejectionReason:
           type: ["string", "null"]
         createdAt:

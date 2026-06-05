@@ -342,7 +342,7 @@ export const GetAdminQueueResponseItem = zod.object({
   "category": zod.string().optional(),
   "lighthouseScore": zod.number(),
   "hasManifest": zod.boolean().optional(),
-  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "status": zod.enum(['received', 'under_review', 'needs_info', 'confirmed', 'in_progress', 'fixed', 'released', 'rejected', 'duplicate']),
   "rejectionReason": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
@@ -410,6 +410,167 @@ export const GetAdminStatsResponse = zod.object({
   "totalApps": zod.number(),
   "openFeedback": zod.number(),
   "approvedThisWeek": zod.number()
+})
+
+
+/**
+ * @summary List all users (admin only)
+ */
+export const ListUsersResponseItem = zod.object({
+  "id": zod.string(),
+  "email": zod.string().nullish(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
+  "profileImageUrl": zod.string().nullish(),
+  "role": zod.enum(['user', 'developer', 'admin']),
+  "createdAt": zod.coerce.date()
+})
+export const ListUsersResponse = zod.array(ListUsersResponseItem)
+
+
+/**
+ * @summary Update a user's role (admin only)
+ */
+export const UpdateUserRoleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateUserRoleBody = zod.object({
+  "role": zod.enum(['user', 'developer', 'admin'])
+})
+
+export const UpdateUserRoleResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get the currently authenticated user
+ */
+export const GetCurrentAuthUserHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCurrentAuthUserResponse = zod.object({
+  "user": zod.union([zod.object({
+  "id": zod.string(),
+  "email": zod.string().email().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "profileImageUrl": zod.string().nullable(),
+  "role": zod.enum(['user', 'developer', 'admin'])
+}),zod.null()])
+})
+
+
+/**
+ * @summary Start the browser OIDC login flow
+ */
+export const BeginBrowserLoginQueryParams = zod.object({
+  "returnTo": zod.coerce.string().optional()
+})
+
+
+/**
+ * @summary Complete the browser OIDC login flow
+ */
+export const HandleBrowserLoginCallbackQueryParams = zod.object({
+  "code": zod.coerce.string().optional(),
+  "state": zod.coerce.string().optional()
+})
+
+
+/**
+ * @summary Clear the session and begin OIDC logout
+ */
+export const LogoutBrowserSessionHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+/**
+ * @summary Exchange a mobile OIDC code for a session token
+ */
+
+
+
+
+
+
+
+export const ExchangeMobileAuthorizationCodeBody = zod.object({
+  "code": zod.string().min(1),
+  "code_verifier": zod.string().min(1),
+  "redirect_uri": zod.string().url().min(1),
+  "state": zod.string().min(1),
+  "nonce": zod.string().min(1).optional()
+})
+
+export const ExchangeMobileAuthorizationCodeResponse = zod.object({
+  "token": zod.string()
+})
+
+
+/**
+ * @summary Delete a mobile session token
+ */
+export const LogoutMobileSessionHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const LogoutMobileSessionResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Get notifications for the authenticated user
+ */
+export const ListNotificationsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListNotificationsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.string(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "type": zod.enum(['submission_update', 'review_reply', 'app_approved', 'system']),
+  "isRead": zod.boolean(),
+  "link": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListNotificationsResponse = zod.array(ListNotificationsResponseItem)
+
+
+/**
+ * @summary Mark a notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MarkNotificationReadHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const MarkNotificationReadResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Clear all notifications for the authenticated user
+ */
+export const ClearNotificationsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ClearNotificationsResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().nullish()
 })
 
 

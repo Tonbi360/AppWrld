@@ -11,17 +11,17 @@ interface App {
   brandColor?: string | null;
   category: string;
   lighthouseScore: number;
-  hasOfflineSupport: boolean;
-  hasPushNotifications: boolean;
-  isInstallable: boolean;
+  hasOfflineSupport?: boolean;
+  hasPushNotifications?: boolean;
+  isInstallable?: boolean;
   views: number;
   tryouts: number;
   installs: number;
   thumbsUp: number;
   thumbsDown: number;
-  isFeatured: boolean;
-  isBoosted: boolean;
-  isVerifiedDev: boolean;
+  isFeatured?: boolean;
+  isBoosted?: boolean;
+  isVerifiedDev?: boolean;
 }
 
 interface AppCardProps {
@@ -52,7 +52,7 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-function CapDot({ active, color, Icon, label }: { active: boolean; color: string; Icon: React.ElementType; label: string }) {
+function CapDot({ active, color, Icon, label }: { active: boolean | undefined; color: string; Icon: React.ElementType; label: string }) {
   return (
     <span
       title={label}

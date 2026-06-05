@@ -5,6 +5,116 @@
  * AppWorld API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AuthUserRole = typeof AuthUserRole[keyof typeof AuthUserRole];
+
+
+export const AuthUserRole = {
+  user: 'user',
+  developer: 'developer',
+  admin: 'admin',
+} as const;
+
+export interface AuthUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+  role: AuthUserRole;
+}
+
+export interface AuthUserEnvelope {
+  user: AuthUser | null;
+}
+
+export interface MobileTokenExchangeRequest {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  code_verifier: string;
+  /** @minLength 1 */
+  redirect_uri: string;
+  /** @minLength 1 */
+  state: string;
+  /** @minLength 1 */
+  nonce?: string;
+}
+
+export interface MobileTokenExchangeSuccess {
+  token: string;
+}
+
+export const LogoutSuccessValue = {
+  success: true,
+} as const;
+export type LogoutSuccess = typeof LogoutSuccessValue;
+
+export interface ErrorEnvelope {
+  error: string;
+}
+
+export type NotificationType = typeof NotificationType[keyof typeof NotificationType];
+
+
+export const NotificationType = {
+  submission_update: 'submission_update',
+  review_reply: 'review_reply',
+  app_approved: 'app_approved',
+  system: 'system',
+} as const;
+
+export interface Notification {
+  id: number;
+  userId: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  isRead: boolean;
+  /** @nullable */
+  link?: string | null;
+  createdAt: string;
+}
+
+export type UserProfileRole = typeof UserProfileRole[keyof typeof UserProfileRole];
+
+
+export const UserProfileRole = {
+  user: 'user',
+  developer: 'developer',
+  admin: 'admin',
+} as const;
+
+export interface UserProfile {
+  id: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  /** @nullable */
+  profileImageUrl?: string | null;
+  role: UserProfileRole;
+  createdAt: string;
+}
+
+export type UpdateRoleInputRole = typeof UpdateRoleInputRole[keyof typeof UpdateRoleInputRole];
+
+
+export const UpdateRoleInputRole = {
+  user: 'user',
+  developer: 'developer',
+  admin: 'admin',
+} as const;
+
+export interface UpdateRoleInput {
+  role: UpdateRoleInputRole;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -110,9 +220,15 @@ export type SubmissionStatus = typeof SubmissionStatus[keyof typeof SubmissionSt
 
 
 export const SubmissionStatus = {
-  pending: 'pending',
-  approved: 'approved',
+  received: 'received',
+  under_review: 'under_review',
+  needs_info: 'needs_info',
+  confirmed: 'confirmed',
+  in_progress: 'in_progress',
+  fixed: 'fixed',
+  released: 'released',
   rejected: 'rejected',
+  duplicate: 'duplicate',
 } as const;
 
 export interface Submission {
@@ -300,6 +416,11 @@ export interface SuccessResponse {
   message?: string | null;
 }
 
+/**
+ * Opaque session token — `Bearer <sid>`.
+ */
+export type AuthorizationSessionHeaderParameter = string;
+
 export type ListAppsParams = {
 search?: string;
 category?: string;
@@ -348,4 +469,13 @@ export const ListFeedbackStatus = {
   reviewed: 'reviewed',
   resolved: 'resolved',
 } as const;
+
+export type BeginBrowserLoginParams = {
+returnTo?: string;
+};
+
+export type HandleBrowserLoginCallbackParams = {
+code?: string;
+state?: string;
+};
 

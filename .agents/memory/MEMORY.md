@@ -1,0 +1,3 @@
+- [Replit Auth + Role System](replit-auth-roles.md) — users table has role enum (user|developer|admin); sessions in DB; authMiddleware on all routes; replit-auth-web lib added to app-world.
+- [Submission Status](submission-status.md) — status field is text (not enum) with 9 values: received|under_review|needs_info|confirmed|in_progress|fixed|released|rejected|duplicate.
+- [Footer Admin Gate](footer-admin-gate.md) — tap "Built by Tonbi360" in footer 5× to reveal passphrase gate; passphrase is "360admin"; redirects to /admin.

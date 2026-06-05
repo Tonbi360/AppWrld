@@ -34,7 +34,7 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-function CapBadge({ active, label, icon: Icon, color }: { active: boolean; label: string; icon: React.ElementType; color: string }) {
+function CapBadge({ active, label, icon: Icon, color }: { active: boolean | undefined; label: string; icon: React.ElementType; color: string }) {
   return (
     <div
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${

@@ -2,6 +2,7 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Browse from "@/pages/browse";
@@ -28,8 +29,16 @@ function Router() {
       <Route path="/app/:id" component={AppDetail} />
       <Route path="/submit" component={Submit} />
       <Route path="/feedback" component={FeedbackPage} />
-      <Route path="/admin" component={Admin} />
-      <Route path="/dev" component={DevPortal} />
+      <Route path="/admin">
+        <ProtectedRoute requiredRole="admin">
+          <Admin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dev">
+        <ProtectedRoute requiredRole="developer">
+          <DevPortal />
+        </ProtectedRoute>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
