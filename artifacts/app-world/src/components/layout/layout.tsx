@@ -1,9 +1,12 @@
 import { useState, useCallback } from "react";
 import { Navbar } from "./navbar";
+import { BottomNav } from "./BottomNav";
 import { useAuth } from "@/hooks/use-auth";
 
 interface LayoutProps {
   children: React.ReactNode;
+  /** Extra bottom padding for mobile bottom nav */
+  mobileNavPadding?: boolean;
 }
 
 function Footer() {
@@ -29,38 +32,42 @@ function Footer() {
     if (pin === "360admin") {
       window.location.href = "/admin";
     } else {
-      setError("Incorrect code.");
+      setError("Incorrect passphrase.");
       setPin("");
     }
   }
 
   return (
-    <footer className="border-t border-border/40 py-8 mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <span className="font-serif font-semibold text-foreground/60">
-            App<span className="text-primary/60">World</span>
+    <footer className="border-t border-border/30 py-10 mt-20">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="font-serif text-sm font-semibold text-foreground/50">
+            App<span className="text-primary/50">World</span>
           </span>
-          <span>— Discover what the web can do.</span>
+          <span className="text-xs text-muted-foreground/60">Discover what the web can do.</span>
         </div>
         <button
           onClick={handleTonbiTap}
-          className="text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors text-xs select-none"
-          aria-label="Built by Tonbi360"
+          className="text-[11px] text-muted-foreground/30 hover:text-muted-foreground/50 transition-colors select-none"
         >
           Built by Tonbi360
         </button>
       </div>
 
-      {/* Secret admin gate */}
-      {showAdminGate && !user?.role?.match(/admin/) && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowAdminGate(false)}>
+      {showAdminGate && user?.role !== "admin" && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md"
+          onClick={() => setShowAdminGate(false)}
+        >
           <div
-            className="bg-[#141418] border border-white/10 rounded-2xl p-6 w-80 shadow-2xl"
+            className="bg-card border border-border/60 rounded-2xl p-6 w-80 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-sm font-semibold text-foreground mb-1">Access code</h2>
-            <p className="text-xs text-muted-foreground mb-4">Enter the admin passphrase.</p>
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+              <span className="text-primary text-lg">&#128274;</span>
+            </div>
+            <h2 className="text-sm font-semibold text-foreground mb-1">Access code required</h2>
+            <p className="text-xs text-muted-foreground mb-4">Enter the admin passphrase to continue.</p>
             <form onSubmit={handlePinSubmit} className="space-y-3">
               <input
                 type="password"
@@ -68,20 +75,20 @@ function Footer() {
                 onChange={(e) => { setPin(e.target.value); setError(""); }}
                 placeholder="Passphrase"
                 autoFocus
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
+                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border/60 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
               />
-              {error && <p className="text-xs text-red-400">{error}</p>}
-              <div className="flex gap-2">
+              {error && <p className="text-xs text-destructive">{error}</p>}
+              <div className="flex gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowAdminGate(false)}
-                  className="flex-1 px-3 py-2 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex-1 px-3 py-2 rounded-xl border border-border/60 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors"
+                  className="flex-1 px-3 py-2 rounded-xl bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors"
                 >
                   Enter
                 </button>
@@ -94,12 +101,15 @@ function Footer() {
   );
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, mobileNavPadding = true }: LayoutProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <main>{children}</main>
-      <Footer />
+      <main className={mobileNavPadding ? "pb-20 md:pb-0" : ""}>{children}</main>
+      <div className={mobileNavPadding ? "pb-20 md:pb-0" : ""}>
+        <Footer />
+      </div>
+      <BottomNav />
     </div>
   );
 }
