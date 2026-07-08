@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { appsTable, reviewsTable, logbookTable } from "@workspace/db";
-import { eq, ilike, and, desc, asc, sql, or } from "drizzle-orm";
+import { eq, ilike, and, desc, sql, or } from "drizzle-orm";
 import {
   ListAppsQueryParams,
   TrackAppEventParams,
@@ -45,53 +45,67 @@ router.get("/apps", async (req, res) => {
     orderBy = desc(appsTable.createdAt);
   }
 
-  const [apps, [{ count }]] = await Promise.all([
-    db.select().from(appsTable).where(where).orderBy(orderBy).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(appsTable).where(where),
-  ]);
-
-  res.json({ apps, total: Number(count), page, limit });
+  try {
+    const [apps, [{ count }]] = await Promise.all([
+      db.select().from(appsTable).where(where).orderBy(orderBy).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(appsTable).where(where),
+    ]);
+    res.json({ apps, total: Number(count), page, limit });
+  } catch (err) {
+    req.log.error({ err }, "Failed to list apps");
+    res.json({ apps: [], total: 0, page, limit });
+  }
 });
 
-router.get("/apps/featured", async (_req, res) => {
-  const apps = await db
-    .select()
-    .from(appsTable)
-    .where(and(eq(appsTable.status, "approved"), eq(appsTable.isFeatured, true)))
-    .orderBy(desc(appsTable.isBoosted), desc(appsTable.createdAt))
-    .limit(8);
-  res.json(apps);
+router.get("/apps/featured", async (req, res) => {
+  try {
+    const apps = await db
+      .select()
+      .from(appsTable)
+      .where(and(eq(appsTable.status, "approved"), eq(appsTable.isFeatured, true)))
+      .orderBy(desc(appsTable.isBoosted), desc(appsTable.createdAt))
+      .limit(8);
+    res.json(apps);
+  } catch (err) {
+    req.log.error({ err }, "Failed to get featured apps");
+    res.json([]);
+  }
 });
 
-router.get("/apps/stats-summary", async (_req, res) => {
-  const [totals] = await db
-    .select({
-      totalApps: sql<number>`count(*)`,
-      totalReviews: sql<number>`(select count(*) from reviews)`,
-      totalInstalls: sql<number>`coalesce(sum(${appsTable.installs}), 0)`,
-      newThisWeek: sql<number>`count(*) filter (where ${appsTable.createdAt} > now() - interval '7 days')`,
-    })
-    .from(appsTable)
-    .where(eq(appsTable.status, "approved"));
+router.get("/apps/stats-summary", async (req, res) => {
+  try {
+    const [totals] = await db
+      .select({
+        totalApps: sql<number>`count(*)`,
+        totalReviews: sql<number>`(select count(*) from reviews)`,
+        totalInstalls: sql<number>`coalesce(sum(${appsTable.installs}), 0)`,
+        newThisWeek: sql<number>`count(*) filter (where ${appsTable.createdAt} > now() - interval '7 days')`,
+      })
+      .from(appsTable)
+      .where(eq(appsTable.status, "approved"));
 
-  const topCategories = await db
-    .select({
-      category: appsTable.category,
-      count: sql<number>`count(*)`,
-    })
-    .from(appsTable)
-    .where(eq(appsTable.status, "approved"))
-    .groupBy(appsTable.category)
-    .orderBy(desc(sql`count(*)`))
-    .limit(6);
+    const topCategories = await db
+      .select({
+        category: appsTable.category,
+        count: sql<number>`count(*)`,
+      })
+      .from(appsTable)
+      .where(eq(appsTable.status, "approved"))
+      .groupBy(appsTable.category)
+      .orderBy(desc(sql`count(*)`))
+      .limit(6);
 
-  res.json({
-    totalApps: Number(totals.totalApps),
-    totalReviews: Number(totals.totalReviews),
-    totalInstalls: Number(totals.totalInstalls),
-    newThisWeek: Number(totals.newThisWeek),
-    topCategories,
-  });
+    res.json({
+      totalApps: Number(totals.totalApps),
+      totalReviews: Number(totals.totalReviews),
+      totalInstalls: Number(totals.totalInstalls),
+      newThisWeek: Number(totals.newThisWeek),
+      topCategories,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get stats summary");
+    res.json({ totalApps: 0, totalReviews: 0, totalInstalls: 0, newThisWeek: 0, topCategories: [] });
+  }
 });
 
 router.get("/apps/:id", async (req, res) => {
@@ -101,18 +115,30 @@ router.get("/apps/:id", async (req, res) => {
     return;
   }
 
-  const [app] = await db.select().from(appsTable).where(eq(appsTable.id, parsed.data.id));
-  if (!app) {
-    res.status(404).json({ error: "Not found" });
-    return;
+  try {
+    const [app] = await db.select().from(appsTable).where(eq(appsTable.id, parsed.data.id));
+    if (!app) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    let recentReviews: unknown[] = [];
+    let recentLogbook: unknown[] = [];
+
+    try {
+      [recentReviews, recentLogbook] = await Promise.all([
+        db.select().from(reviewsTable).where(eq(reviewsTable.appId, app.id)).orderBy(desc(reviewsTable.createdAt)).limit(5),
+        db.select().from(logbookTable).where(eq(logbookTable.appId, app.id)).orderBy(desc(logbookTable.createdAt)).limit(3),
+      ]);
+    } catch (err) {
+      req.log.error({ err }, "Failed to load reviews/logbook for app");
+    }
+
+    res.json({ ...app, recentReviews, recentLogbook });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get app");
+    res.status(500).json({ error: "Failed to load app" });
   }
-
-  const [recentReviews, recentLogbook] = await Promise.all([
-    db.select().from(reviewsTable).where(eq(reviewsTable.appId, app.id)).orderBy(desc(reviewsTable.createdAt)).limit(5),
-    db.select().from(logbookTable).where(eq(logbookTable.appId, app.id)).orderBy(desc(logbookTable.createdAt)).limit(3),
-  ]);
-
-  res.json({ ...app, recentReviews, recentLogbook });
 });
 
 router.post("/apps/:id/track", async (req, res) => {
@@ -131,8 +157,12 @@ router.post("/apps/:id/track", async (req, res) => {
     event === "tryout" ? appsTable.tryouts :
     appsTable.installs;
 
-  await db.update(appsTable).set({ [col.name]: sql`${col} + 1` }).where(eq(appsTable.id, id));
-  res.json({ success: true, message: null });
+  try {
+    await db.update(appsTable).set({ [col.name]: sql`${col} + 1` }).where(eq(appsTable.id, id));
+    res.json({ success: true, message: null });
+  } catch {
+    res.json({ success: true, message: null });
+  }
 });
 
 router.get("/apps/:id/check-iframe", async (req, res) => {
@@ -142,28 +172,33 @@ router.get("/apps/:id/check-iframe", async (req, res) => {
     return;
   }
 
-  const [app] = await db.select().from(appsTable).where(eq(appsTable.id, parsed.data.id));
-  if (!app) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(app.url, { method: "HEAD", signal: controller.signal });
-    clearTimeout(timeout);
+    const [app] = await db.select().from(appsTable).where(eq(appsTable.id, parsed.data.id));
+    if (!app) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
 
-    const xfo = response.headers.get("x-frame-options") ?? "";
-    const csp = response.headers.get("content-security-policy") ?? "";
-    const blocked =
-      xfo.toLowerCase().includes("deny") ||
-      xfo.toLowerCase().includes("sameorigin") ||
-      csp.toLowerCase().includes("frame-ancestors");
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(app.url, { method: "HEAD", signal: controller.signal });
+      clearTimeout(timeout);
 
-    res.json({ supportsIframe: !blocked, url: app.url });
-  } catch {
-    res.json({ supportsIframe: false, url: app.url });
+      const xfo = response.headers.get("x-frame-options") ?? "";
+      const csp = response.headers.get("content-security-policy") ?? "";
+      const blocked =
+        xfo.toLowerCase().includes("deny") ||
+        xfo.toLowerCase().includes("sameorigin") ||
+        csp.toLowerCase().includes("frame-ancestors");
+
+      res.json({ supportsIframe: !blocked, url: app.url });
+    } catch {
+      res.json({ supportsIframe: false, url: app.url });
+    }
+  } catch (err) {
+    req.log.error({ err }, "Failed to check iframe for app");
+    res.status(500).json({ error: "Failed to check app" });
   }
 });
 

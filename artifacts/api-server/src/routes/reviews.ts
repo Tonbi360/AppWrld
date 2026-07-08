@@ -20,13 +20,17 @@ router.get("/reviews", async (req, res) => {
     return;
   }
 
-  const reviews = await db
-    .select()
-    .from(reviewsTable)
-    .where(eq(reviewsTable.appId, parsed.data.appId))
-    .orderBy(desc(reviewsTable.createdAt));
-
-  res.json(reviews);
+  try {
+    const reviews = await db
+      .select()
+      .from(reviewsTable)
+      .where(eq(reviewsTable.appId, parsed.data.appId))
+      .orderBy(desc(reviewsTable.createdAt));
+    res.json(reviews);
+  } catch (err) {
+    req.log.error({ err }, "Failed to list reviews");
+    res.json([]);
+  }
 });
 
 router.post("/reviews", async (req, res) => {
@@ -38,21 +42,30 @@ router.post("/reviews", async (req, res) => {
 
   const { vote, appId } = parsed.data;
 
-  const [review] = await db.insert(reviewsTable).values(parsed.data).returning();
+  try {
+    const [review] = await db.insert(reviewsTable).values(parsed.data).returning();
 
-  if (vote === "up") {
-    await db
-      .update(appsTable)
-      .set({ thumbsUp: sql`${appsTable.thumbsUp} + 1` })
-      .where(eq(appsTable.id, appId));
-  } else {
-    await db
-      .update(appsTable)
-      .set({ thumbsDown: sql`${appsTable.thumbsDown} + 1` })
-      .where(eq(appsTable.id, appId));
+    try {
+      if (vote === "up") {
+        await db
+          .update(appsTable)
+          .set({ thumbsUp: sql`${appsTable.thumbsUp} + 1` })
+          .where(eq(appsTable.id, appId));
+      } else {
+        await db
+          .update(appsTable)
+          .set({ thumbsDown: sql`${appsTable.thumbsDown} + 1` })
+          .where(eq(appsTable.id, appId));
+      }
+    } catch (err) {
+      req.log.error({ err }, "Failed to update app vote count");
+    }
+
+    res.status(201).json(review);
+  } catch (err) {
+    req.log.error({ err }, "Failed to create review");
+    res.status(500).json({ error: "Failed to submit review" });
   }
-
-  res.status(201).json(review);
 });
 
 router.post("/reviews/:id/reply", async (req, res) => {
@@ -63,18 +76,23 @@ router.post("/reviews/:id/reply", async (req, res) => {
     return;
   }
 
-  const [updated] = await db
-    .update(reviewsTable)
-    .set({ developerReply: bodyParsed.data.reply })
-    .where(eq(reviewsTable.id, paramsParsed.data.id))
-    .returning();
+  try {
+    const [updated] = await db
+      .update(reviewsTable)
+      .set({ developerReply: bodyParsed.data.reply })
+      .where(eq(reviewsTable.id, paramsParsed.data.id))
+      .returning();
 
-  if (!updated) {
-    res.status(404).json({ error: "Review not found" });
-    return;
+    if (!updated) {
+      res.status(404).json({ error: "Review not found" });
+      return;
+    }
+
+    res.json(updated);
+  } catch (err) {
+    req.log.error({ err }, "Failed to reply to review");
+    res.status(500).json({ error: "Failed to save reply" });
   }
-
-  res.json(updated);
 });
 
 export default router;

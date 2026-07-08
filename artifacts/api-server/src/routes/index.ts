@@ -10,6 +10,7 @@ import adminRouter from "./admin";
 import notificationsRouter from "./notifications";
 import usersRouter from "./users";
 import setupRouter from "./setup";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(adminRouter);
 router.use(notificationsRouter);
 router.use(usersRouter);
 router.use(setupRouter);
+router.use(pushRouter);
 
 export default router;

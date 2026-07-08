@@ -1,23 +1,27 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { submissionsTable, appsTable } from "@workspace/db";
+import { submissionsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { SubmitAppBody, ScrapeManifestBody } from "@workspace/api-zod";
 
 const router = Router();
 
 router.get("/submissions/mine", async (req, res) => {
-  const session = (req as any).session;
-  if (!session?.userId) {
+  if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  const subs = await db
-    .select()
-    .from(submissionsTable)
-    .where(eq(submissionsTable.submitterId, session.userId))
-    .orderBy(desc(submissionsTable.createdAt));
-  res.json(subs);
+  try {
+    const subs = await db
+      .select()
+      .from(submissionsTable)
+      .where(eq(submissionsTable.submitterId, req.user.id))
+      .orderBy(desc(submissionsTable.createdAt));
+    res.json(subs);
+  } catch (err) {
+    req.log.error({ err }, "Failed to load user submissions");
+    res.json([]);
+  }
 });
 
 router.get("/submissions/:id", async (req, res) => {
@@ -26,15 +30,20 @@ router.get("/submissions/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const [submission] = await db
-    .select()
-    .from(submissionsTable)
-    .where(eq(submissionsTable.id, id));
-  if (!submission) {
-    res.status(404).json({ error: "Not found" });
-    return;
+  try {
+    const [submission] = await db
+      .select()
+      .from(submissionsTable)
+      .where(eq(submissionsTable.id, id));
+    if (!submission) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json(submission);
+  } catch (err) {
+    req.log.error({ err }, "Failed to get submission");
+    res.status(500).json({ error: "Failed to load submission" });
   }
-  res.json(submission);
 });
 
 router.post("/submissions", async (req, res) => {
@@ -45,7 +54,7 @@ router.post("/submissions", async (req, res) => {
   }
 
   const { url, uvp, category, name, description, iconUrl, brandColor } = parsed.data;
-  const session = (req as any).session;
+  const submitterId = req.isAuthenticated() ? req.user.id : null;
 
   let hasManifest = false;
   let lighthouseScore = 0;
@@ -71,24 +80,29 @@ router.post("/submissions", async (req, res) => {
     return;
   }
 
-  const [submission] = await db
-    .insert(submissionsTable)
-    .values({
-      url,
-      uvp,
-      category,
-      name: resolvedName,
-      description: resolvedDescription,
-      iconUrl: iconUrl ?? null,
-      brandColor: brandColor ?? null,
-      hasManifest,
-      lighthouseScore,
-      status: "received",
-      submitterId: session?.userId ?? null,
-    })
-    .returning();
+  try {
+    const [submission] = await db
+      .insert(submissionsTable)
+      .values({
+        url,
+        uvp,
+        category,
+        name: resolvedName,
+        description: resolvedDescription,
+        iconUrl: iconUrl ?? null,
+        brandColor: brandColor ?? null,
+        hasManifest,
+        lighthouseScore,
+        status: "received",
+        submitterId,
+      })
+      .returning();
 
-  res.status(201).json(submission);
+    res.status(201).json(submission);
+  } catch (err) {
+    req.log.error({ err }, "Failed to create submission");
+    res.status(500).json({ error: "Failed to submit app" });
+  }
 });
 
 router.post("/submissions/scrape-manifest", async (req, res) => {

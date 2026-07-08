@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { ExternalLink, ChevronRight, Bell, Package, Clock } from "lucide-react";
+import { ExternalLink, ChevronRight, Bell, Package, Clock, BellOff } from "lucide-react";
 import { Layout } from "@/components/layout/layout";
 import { useAuth } from "@/hooks/use-auth";
 import { getStatusMeta } from "@/lib/status";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Submission {
   id: number;
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(true);
   const [loadingNotifs, setLoadingNotifs] = useState(true);
+  const push = usePushNotifications();
 
   useEffect(() => {
     fetch("/api/submissions/mine", { credentials: "include" })
@@ -88,6 +90,53 @@ export default function Dashboard() {
             </div>
           </Link>
         </div>
+
+        {/* Push notifications toggle */}
+        {push.isSupported && push.permission !== "denied" && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 flex items-center justify-between p-4 rounded-2xl bg-card border border-border/50"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+                {push.isSubscribed ? (
+                  <Bell className="w-4 h-4 text-primary" />
+                ) : (
+                  <BellOff className="w-4 h-4 text-muted-foreground" />
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {push.isSubscribed ? "Notifications on" : "Get notified"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {push.isSubscribed
+                    ? "You'll hear when your app is reviewed"
+                    : "Turn on alerts for submission updates"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={push.isSubscribed ? push.unsubscribe : push.subscribe}
+              disabled={push.isLoading}
+              style={{
+                background: push.isSubscribed ? "transparent" : "hsl(258 90% 66%)",
+                border: push.isSubscribed ? "1px solid var(--color-border)" : "none",
+                color: push.isSubscribed ? "var(--color-text-muted)" : "white",
+                padding: "0.375rem 0.875rem",
+                borderRadius: "8px",
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                cursor: push.isLoading ? "wait" : "pointer",
+                opacity: push.isLoading ? 0.7 : 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {push.isLoading ? "..." : push.isSubscribed ? "Turn off" : "Turn on"}
+            </button>
+          </motion.div>
+        )}
 
         {/* Submissions */}
         <section className="mb-8">
@@ -173,7 +222,7 @@ export default function Dashboard() {
                   }`}
                 >
                   {!n.isRead && <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />}
-                  <div className={n.isRead ? "" : ""}>
+                  <div>
                     <p className="text-sm font-medium text-foreground">{n.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.message}</p>
                   </div>
