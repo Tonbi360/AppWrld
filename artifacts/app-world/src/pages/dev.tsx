@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, BookOpen, MessageSquare, CheckCircle, Loader2, AlertCircle, ChevronRight } from "lucide-react";
+import { Search, BookOpen, MessageSquare, CheckCircle, Loader2, AlertCircle, ChevronRight, Code2 } from "lucide-react";
 import { Layout } from "@/components/layout/layout";
 import {
   useListApps, useCreateLogbookEntry, useReplyToReview, useListReviews,
   useListLogbookEntries
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function DevPortal() {
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [selectedApp, setSelectedApp] = useState<{ id: number; name: string; brandColor?: string | null } | null>(null);
   const [activeSection, setActiveSection] = useState<"logbook" | "replies">("logbook");
@@ -50,7 +52,7 @@ export default function DevPortal() {
           setTimeout(() => setLogDone(false), 3000);
           qc.invalidateQueries({ queryKey: ["logbook", selectedApp.id] });
         },
-        onError: () => setError("Failed to post entry. Please try again."),
+        onError: () => setError("Failed to post. Please try again."),
       }
     );
   };
@@ -73,50 +75,48 @@ export default function DevPortal() {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 page-enter">
         {/* Header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="font-serif text-2xl font-bold text-foreground">Developer Portal</h1>
-              <p className="text-muted-foreground text-sm">Post logbook entries and reply to user reviews</p>
-            </div>
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+            <Code2 className="w-5 h-5 text-blue-400" />
           </div>
-          <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/6 text-amber-400/80 text-xs leading-relaxed">
-            This portal is open to developers whose apps are listed on AppWorld. Find your app below to manage updates and respond to your community.
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Developer Portal</h1>
+            <p className="text-sm text-muted-foreground">
+              {user?.role === "admin" ? "Admin access" : "Manage your listed apps"}
+            </p>
           </div>
         </div>
 
         {/* App search */}
         <div className="mb-8">
-          <label className="text-sm font-medium text-foreground mb-2 block">Find Your App</label>
+          <label className="text-xs font-medium text-muted-foreground mb-2 block">Find your app</label>
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
               value={query}
               onChange={(e) => { setQuery(e.target.value); setSelectedApp(null); }}
-              placeholder="Search your app by name..."
-              data-testid="input-dev-search"
-              className="w-full pl-10 pr-4 py-3 bg-card border border-white/8 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
+              placeholder="Type the name of your listed PWA..."
+              className="w-full pl-10 pr-10 py-2.5 bg-card border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
             />
-            {isFetching && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />}
+            {isFetching && (
+              <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+            )}
           </div>
 
-          {/* Results dropdown */}
           {query.length >= 2 && searchResults && !selectedApp && (
-            <div className="mt-2 rounded-xl border border-white/8 bg-card overflow-hidden divide-y divide-white/5">
+            <div className="mt-1.5 rounded-xl border border-border/50 bg-card overflow-hidden shadow-lg shadow-black/20">
               {searchResults.apps?.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-muted-foreground">No apps found for "{query}"</div>
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  No apps found for "{query}"
+                </div>
               ) : searchResults.apps?.map((app) => (
                 <button
                   key={app.id}
                   onClick={() => { setSelectedApp({ id: app.id, name: app.name, brandColor: app.brandColor }); setQuery(app.name); }}
-                  data-testid={`result-app-${app.id}`}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/4 transition-colors text-left"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-foreground/4 transition-colors text-left border-b border-border/30 last:border-0"
                 >
                   <div>
                     <span className="text-sm font-medium text-foreground">{app.name}</span>
@@ -130,36 +130,38 @@ export default function DevPortal() {
         </div>
 
         {/* Selected app panel */}
-        {selectedApp && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            {/* App name banner */}
+        {selectedApp ? (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            {/* App banner */}
             <div
-              className="flex items-center gap-3 p-4 rounded-xl mb-6 border"
-              style={{ background: `${accent}12`, borderColor: `${accent}30` }}
+              className="flex items-center gap-3 p-4 rounded-2xl mb-6 border"
+              style={{ background: `${accent}0d`, borderColor: `${accent}28` }}
             >
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
-                style={{ background: `${accent}25`, color: accent }}
+                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm"
+                style={{ background: `${accent}22`, color: accent }}
               >
                 {selectedApp.name[0]}
               </div>
-              <span className="font-semibold text-foreground">{selectedApp.name}</span>
-              <CheckCircle className="w-4 h-4 ml-auto" style={{ color: accent }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">{selectedApp.name}</p>
+                <p className="text-xs text-muted-foreground">Selected</p>
+              </div>
+              <CheckCircle className="w-4 h-4 shrink-0" style={{ color: accent }} />
             </div>
 
             {/* Section tabs */}
-            <div className="flex gap-1 p-1 rounded-xl bg-white/4 border border-white/6 mb-6">
+            <div className="flex gap-0.5 p-1 rounded-xl bg-muted/50 border border-border/40 mb-6">
               {[
                 { id: "logbook" as const, label: "Logbook", icon: <BookOpen className="w-3.5 h-3.5" /> },
-                { id: "replies" as const, label: "Review Replies", icon: <MessageSquare className="w-3.5 h-3.5" /> },
+                { id: "replies" as const, label: "Reviews", icon: <MessageSquare className="w-3.5 h-3.5" /> },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveSection(tab.id)}
-                  data-testid={`tab-dev-${tab.id}`}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     activeSection === tab.id
-                      ? "bg-primary/20 text-primary"
+                      ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -170,16 +172,15 @@ export default function DevPortal() {
 
             {/* Logbook section */}
             {activeSection === "logbook" && (
-              <div className="space-y-5">
-                <div className="p-5 rounded-xl border border-white/8 bg-card/50">
-                  <h3 className="text-sm font-semibold text-foreground mb-3">Post a Logbook Entry</h3>
+              <div className="space-y-4">
+                <div className="p-5 rounded-2xl border border-border/40 bg-card">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Post an update</h3>
                   <textarea
                     value={logEntry}
                     onChange={(e) => setLogEntry(e.target.value)}
                     placeholder="Share what's new — an update, a fix, a new feature, or a note to your users..."
                     rows={4}
-                    data-testid="textarea-log-entry"
-                    className="w-full px-3 py-2.5 bg-background border border-white/8 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none mb-3"
+                    className="w-full px-3 py-2.5 bg-background border border-border/60 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none mb-3"
                   />
                   {error && (
                     <div className="flex items-center gap-2 text-destructive text-xs mb-3">
@@ -188,60 +189,57 @@ export default function DevPortal() {
                   )}
                   {logDone && (
                     <div className="flex items-center gap-2 text-green-400 text-xs mb-3">
-                      <CheckCircle className="w-3.5 h-3.5" /> Entry posted successfully
+                      <CheckCircle className="w-3.5 h-3.5" /> Posted
                     </div>
                   )}
                   <button
                     onClick={handlePostEntry}
                     disabled={!logEntry.trim() || createEntry.isPending}
-                    data-testid="button-post-entry"
                     className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium disabled:opacity-50 hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                   >
-                    {createEntry.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Posting...</> : "Post Entry"}
+                    {createEntry.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Posting...</> : "Post Update"}
                   </button>
                 </div>
 
                 {/* Past entries */}
-                <div>
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Past Entries</h3>
-                  {logbookEntries?.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground text-sm border border-white/5 rounded-xl">
-                      No logbook entries yet. Post your first update above.
-                    </div>
-                  ) : logbookEntries?.map((entry) => (
-                    <div key={entry.id} className="p-4 rounded-xl border border-white/7 bg-card/40 mb-3">
-                      <p className="text-sm text-foreground leading-relaxed">{entry.content}</p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                {(logbookEntries?.length ?? 0) > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Past updates</p>
+                    {logbookEntries?.map((entry) => (
+                      <div key={entry.id} className="p-4 rounded-2xl border border-border/30 bg-card/60">
+                        <p className="text-sm text-foreground leading-relaxed">{entry.content}</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Review replies section */}
             {activeSection === "replies" && (
-              <div className="space-y-4">
-                {reviews?.length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground text-sm border border-white/5 rounded-xl">
+              <div className="space-y-3">
+                {!reviews || reviews.length === 0 ? (
+                  <div className="text-center py-14 text-muted-foreground text-sm border border-border/30 rounded-2xl">
                     No reviews yet for {selectedApp.name}.
                   </div>
-                ) : reviews?.map((review) => (
-                  <div key={review.id} className="p-4 rounded-xl border border-white/7 bg-card/40">
+                ) : reviews.map((review) => (
+                  <div key={review.id} className="p-4 rounded-2xl border border-border/40 bg-card">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">
+                      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
                         {review.ghostName[0]?.toUpperCase()}
-                      </span>
+                      </div>
                       <span className="text-sm font-medium text-foreground">{review.ghostName}</span>
                       <span className={`text-xs ml-auto font-medium ${review.vote === "up" ? "text-green-400" : "text-red-400"}`}>
                         {review.vote === "up" ? "Recommended" : "Not recommended"}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">{review.comment}</p>
+                    <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{review.comment}</p>
 
                     {review.developerReply ? (
-                      <div className="pl-3 border-l-2 border-primary/50">
+                      <div className="pl-3 border-l-2 border-primary/40">
                         <span className="text-[10px] font-semibold text-primary uppercase tracking-wide block mb-1">Your Reply</span>
                         <p className="text-xs text-muted-foreground">{review.developerReply}</p>
                       </div>
@@ -255,14 +253,12 @@ export default function DevPortal() {
                           value={replyText[review.id] ?? ""}
                           onChange={(e) => setReplyText((r) => ({ ...r, [review.id]: e.target.value }))}
                           placeholder="Write a reply..."
-                          data-testid={`input-reply-${review.id}`}
-                          className="flex-1 px-3 py-2 bg-background border border-white/8 rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40"
+                          className="flex-1 px-3 py-2 bg-background border border-border/60 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40"
                         />
                         <button
                           onClick={() => handleReply(review.id)}
                           disabled={!replyText[review.id]?.trim() || replyToReview.isPending}
-                          data-testid={`button-reply-${review.id}`}
-                          className="px-3 py-2 rounded-lg bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 disabled:opacity-40 transition-colors flex-shrink-0"
+                          className="px-3 py-2 rounded-xl bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 disabled:opacity-40 transition-colors shrink-0"
                         >
                           Reply
                         </button>
@@ -273,14 +269,11 @@ export default function DevPortal() {
               </div>
             )}
           </motion.div>
-        )}
-
-        {/* Empty state before searching */}
-        {!selectedApp && query.length < 2 && (
-          <div className="text-center py-16 text-muted-foreground border border-white/5 rounded-2xl">
-            <BookOpen className="w-10 h-10 mx-auto mb-4 opacity-30" />
-            <p className="font-medium text-foreground/60 mb-1">Search for your app above</p>
-            <p className="text-sm">Type at least 2 characters to find your listed PWA</p>
+        ) : (
+          <div className="text-center py-16 rounded-2xl border border-border/30 bg-card/30">
+            <BookOpen className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-medium text-foreground/70 mb-1">Find your listed app above</p>
+            <p className="text-xs text-muted-foreground">Type at least 2 characters to search</p>
           </div>
         )}
       </div>

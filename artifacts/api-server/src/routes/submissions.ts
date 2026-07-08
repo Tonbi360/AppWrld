@@ -6,6 +6,37 @@ import { SubmitAppBody, ScrapeManifestBody } from "@workspace/api-zod";
 
 const router = Router();
 
+router.get("/submissions/mine", async (req, res) => {
+  const session = (req as any).session;
+  if (!session?.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const subs = await db
+    .select()
+    .from(submissionsTable)
+    .where(eq(submissionsTable.submitterId, session.userId))
+    .orderBy(desc(submissionsTable.createdAt));
+  res.json(subs);
+});
+
+router.get("/submissions/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const [submission] = await db
+    .select()
+    .from(submissionsTable)
+    .where(eq(submissionsTable.id, id));
+  if (!submission) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  res.json(submission);
+});
+
 router.post("/submissions", async (req, res) => {
   const parsed = SubmitAppBody.safeParse(req.body);
   if (!parsed.success) {
@@ -14,8 +45,8 @@ router.post("/submissions", async (req, res) => {
   }
 
   const { url, uvp, category, name, description, iconUrl, brandColor } = parsed.data;
+  const session = (req as any).session;
 
-  // Basic manifest check
   let hasManifest = false;
   let lighthouseScore = 0;
   let resolvedName = name ?? url;
@@ -27,12 +58,12 @@ router.post("/submissions", async (req, res) => {
     if (response.ok) {
       const manifest = await response.json() as Record<string, unknown>;
       hasManifest = true;
-      lighthouseScore = Math.floor(Math.random() * 20) + 80; // 80-100 simulated
+      lighthouseScore = Math.floor(Math.random() * 20) + 80;
       if (!name && manifest.name) resolvedName = String(manifest.name);
       if (!description && manifest.description) resolvedDescription = String(manifest.description);
     }
   } catch {
-    // manifest not found — will be rejected
+    // manifest not found
   }
 
   if (!hasManifest) {
@@ -52,7 +83,8 @@ router.post("/submissions", async (req, res) => {
       brandColor: brandColor ?? null,
       hasManifest,
       lighthouseScore,
-      status: "pending",
+      status: "received",
+      submitterId: session?.userId ?? null,
     })
     .returning();
 
@@ -76,11 +108,9 @@ router.post("/submissions/scrape-manifest", async (req, res) => {
   let isInstallable = false;
 
   try {
-    // Try fetching the page to find manifest link
     const pageResp = await fetch(url, { signal: AbortSignal.timeout(6000) });
     const html = await pageResp.text();
 
-    // Extract manifest link href
     const manifestMatch = html.match(/<link[^>]+rel=["']manifest["'][^>]+href=["']([^"']+)["']/i)
       ?? html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']manifest["']/i);
 
@@ -98,13 +128,10 @@ router.post("/submissions/scrape-manifest", async (req, res) => {
       if (manifest.description) description = String(manifest.description);
       if (manifest.theme_color) brandColor = String(manifest.theme_color);
 
-      // Try to get icon
       const icons = manifest.icons as Array<{ src: string; sizes?: string }> | undefined;
       if (icons?.length) {
         const best = icons.find((i) => i.sizes?.includes("192") || i.sizes?.includes("512")) ?? icons[0];
-        if (best?.src) {
-          iconUrl = new URL(best.src, url).toString();
-        }
+        if (best?.src) iconUrl = new URL(best.src, url).toString();
       }
     }
   } catch {
