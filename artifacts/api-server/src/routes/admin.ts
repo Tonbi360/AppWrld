@@ -16,7 +16,9 @@ router.get("/admin/queue", async (req, res) => {
     const queue = await db
       .select()
       .from(submissionsTable)
-      .where(eq(submissionsTable.status, "pending"))
+      .where(
+        sql`${submissionsTable.status} NOT IN ('approved', 'rejected')`
+      )
       .orderBy(desc(submissionsTable.createdAt));
     res.json(queue);
   } catch (err) {

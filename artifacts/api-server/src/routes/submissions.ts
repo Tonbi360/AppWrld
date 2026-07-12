@@ -6,6 +6,69 @@ import { SubmitAppBody, ScrapeManifestBody } from "@workspace/api-zod";
 
 const router = Router();
 
+async function detectManifest(url: string): Promise<{
+  hasManifest: boolean;
+  name: string | null;
+  description: string | null;
+  iconUrl: string | null;
+  brandColor: string | null;
+  lighthouseScore: number;
+}> {
+  let hasManifest = false;
+  let name: string | null = null;
+  let description: string | null = null;
+  let iconUrl: string | null = null;
+  let brandColor: string | null = null;
+  let lighthouseScore = 0;
+
+  try {
+    const pageResp = await fetch(url, { signal: AbortSignal.timeout(7000) });
+    const html = await pageResp.text();
+
+    const manifestMatch =
+      html.match(/<link[^>]+rel=["']manifest["'][^>]+href=["']([^"']+)["']/i) ??
+      html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']manifest["']/i);
+
+    const manifestHref = manifestMatch?.[1] ?? "/manifest.json";
+    const manifestUrl = new URL(manifestHref, url).toString();
+
+    const manifestResp = await fetch(manifestUrl, { signal: AbortSignal.timeout(5000) });
+    if (manifestResp.ok) {
+      const manifest = await manifestResp.json() as Record<string, unknown>;
+      hasManifest = true;
+      lighthouseScore = Math.floor(Math.random() * 15) + 82;
+
+      if (manifest.name) name = String(manifest.name);
+      if (manifest.description) description = String(manifest.description);
+      if (manifest.theme_color) brandColor = String(manifest.theme_color);
+
+      const icons = manifest.icons as Array<{ src: string; sizes?: string }> | undefined;
+      if (icons?.length) {
+        const best = icons.find((i) => i.sizes?.includes("192") || i.sizes?.includes("512")) ?? icons[0];
+        if (best?.src) iconUrl = new URL(best.src, url).toString();
+      }
+    }
+  } catch {
+    // network/parse error — try direct manifest.json as fallback
+    try {
+      const manifestUrl = new URL("/manifest.json", url).toString();
+      const resp = await fetch(manifestUrl, { signal: AbortSignal.timeout(4000) });
+      if (resp.ok) {
+        const manifest = await resp.json() as Record<string, unknown>;
+        hasManifest = true;
+        lighthouseScore = Math.floor(Math.random() * 15) + 82;
+        if (manifest.name) name = String(manifest.name);
+        if (manifest.description) description = String(manifest.description);
+        if (manifest.theme_color) brandColor = String(manifest.theme_color);
+      }
+    } catch {
+      // still no manifest
+    }
+  }
+
+  return { hasManifest, name, description, iconUrl, brandColor, lighthouseScore };
+}
+
 router.get("/submissions/mine", async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Not authenticated" });
@@ -56,29 +119,17 @@ router.post("/submissions", async (req, res) => {
   const { url, uvp, category, name, description, iconUrl, brandColor } = parsed.data;
   const submitterId = req.isAuthenticated() ? req.user.id : null;
 
-  let hasManifest = false;
-  let lighthouseScore = 0;
-  let resolvedName = name ?? url;
-  let resolvedDescription = description ?? "";
+  const detected = await detectManifest(url);
 
-  try {
-    const manifestUrl = new URL("/manifest.json", url).toString();
-    const response = await fetch(manifestUrl, { signal: AbortSignal.timeout(5000) });
-    if (response.ok) {
-      const manifest = await response.json() as Record<string, unknown>;
-      hasManifest = true;
-      lighthouseScore = Math.floor(Math.random() * 20) + 80;
-      if (!name && manifest.name) resolvedName = String(manifest.name);
-      if (!description && manifest.description) resolvedDescription = String(manifest.description);
-    }
-  } catch {
-    // manifest not found
-  }
-
-  if (!hasManifest) {
-    res.status(422).json({ error: "No valid manifest.json found. This URL does not appear to be a PWA." });
+  if (!detected.hasManifest) {
+    res.status(422).json({ error: "No valid web app manifest found. Make sure this URL is a Progressive Web App." });
     return;
   }
+
+  const resolvedName = name ?? detected.name ?? url;
+  const resolvedDescription = description ?? detected.description ?? "";
+  const resolvedIconUrl = iconUrl ?? detected.iconUrl ?? null;
+  const resolvedBrandColor = brandColor ?? detected.brandColor ?? null;
 
   try {
     const [submission] = await db
@@ -89,10 +140,10 @@ router.post("/submissions", async (req, res) => {
         category,
         name: resolvedName,
         description: resolvedDescription,
-        iconUrl: iconUrl ?? null,
-        brandColor: brandColor ?? null,
-        hasManifest,
-        lighthouseScore,
+        iconUrl: resolvedIconUrl,
+        brandColor: resolvedBrandColor,
+        hasManifest: true,
+        lighthouseScore: detected.lighthouseScore,
         status: "received",
         submitterId,
       })
@@ -112,47 +163,16 @@ router.post("/submissions/scrape-manifest", async (req, res) => {
     return;
   }
 
-  const { url } = parsed.data;
-  let name: string | null = null;
-  let description: string | null = null;
-  let iconUrl: string | null = null;
-  let brandColor: string | null = null;
-  let hasManifest = false;
-  let lighthouseScore = 0;
-  let isInstallable = false;
-
-  try {
-    const pageResp = await fetch(url, { signal: AbortSignal.timeout(6000) });
-    const html = await pageResp.text();
-
-    const manifestMatch = html.match(/<link[^>]+rel=["']manifest["'][^>]+href=["']([^"']+)["']/i)
-      ?? html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']manifest["']/i);
-
-    const manifestHref = manifestMatch?.[1] ?? "/manifest.json";
-    const manifestUrl = new URL(manifestHref, url).toString();
-
-    const manifestResp = await fetch(manifestUrl, { signal: AbortSignal.timeout(5000) });
-    if (manifestResp.ok) {
-      const manifest = await manifestResp.json() as Record<string, unknown>;
-      hasManifest = true;
-      isInstallable = true;
-      lighthouseScore = Math.floor(Math.random() * 15) + 82;
-
-      if (manifest.name) name = String(manifest.name);
-      if (manifest.description) description = String(manifest.description);
-      if (manifest.theme_color) brandColor = String(manifest.theme_color);
-
-      const icons = manifest.icons as Array<{ src: string; sizes?: string }> | undefined;
-      if (icons?.length) {
-        const best = icons.find((i) => i.sizes?.includes("192") || i.sizes?.includes("512")) ?? icons[0];
-        if (best?.src) iconUrl = new URL(best.src, url).toString();
-      }
-    }
-  } catch {
-    // network error
-  }
-
-  res.json({ name, description, iconUrl, brandColor, hasManifest, lighthouseScore, isInstallable });
+  const result = await detectManifest(parsed.data.url);
+  res.json({
+    name: result.name,
+    description: result.description,
+    iconUrl: result.iconUrl,
+    brandColor: result.brandColor,
+    hasManifest: result.hasManifest,
+    lighthouseScore: result.lighthouseScore,
+    isInstallable: result.hasManifest,
+  });
 });
 
 export default router;

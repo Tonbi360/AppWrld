@@ -1,23 +1,28 @@
 import { Link, useLocation } from "wouter";
-import { Home, Compass, Plus, Bell, User } from "lucide-react";
+import { Home, Compass, Plus, LayoutDashboard, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export function BottomNav() {
   const [location] = useLocation();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
 
-  const items = [
-    { href: "/", icon: Home, label: "Home" },
-    { href: "/browse", icon: Compass, label: "Browse" },
-    { href: "/submit", icon: Plus, label: "Submit", primary: true },
-    ...(isAuthenticated
-      ? [{ href: "/dashboard", icon: Bell, label: "Activity" }]
-      : []),
-    { href: isAuthenticated ? "/dashboard#profile" : "#login", icon: User, label: "Profile" },
-  ];
+  const items = isAuthenticated
+    ? [
+        { href: "/", icon: Home, label: "Home" },
+        { href: "/browse", icon: Compass, label: "Browse" },
+        { href: "/submit", icon: Plus, label: "Submit", primary: true },
+        { href: "/dashboard", icon: LayoutDashboard, label: "Activity" },
+        { href: "/profile", icon: User, label: "Profile" },
+      ]
+    : [
+        { href: "/", icon: Home, label: "Home" },
+        { href: "/browse", icon: Compass, label: "Browse" },
+        { href: "/submit", icon: Plus, label: "Submit", primary: true },
+        { href: "/profile", icon: User, label: "Profile" },
+      ];
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-t border-border/40 bottom-nav-safe">
@@ -27,8 +32,7 @@ export function BottomNav() {
           return (
             <Link
               key={item.label}
-              href={item.href === "#login" ? "/" : item.href}
-              onClick={item.href === "#login" ? (e) => { e.preventDefault(); login(); } : undefined}
+              href={item.href}
               className="flex flex-col items-center gap-0.5 min-w-[52px] py-1"
             >
               <div className={`relative flex items-center justify-center ${
@@ -37,7 +41,7 @@ export function BottomNav() {
                   : "w-8 h-8 rounded-lg"
               } ${active && !item.primary ? "bg-primary/12" : ""}`}>
                 <item.icon
-                  className={`${item.primary ? "w-4.5 h-4.5 text-white" : "w-4 h-4"} ${
+                  className={`${item.primary ? "w-5 h-5 text-white" : "w-4 h-4"} ${
                     active && !item.primary ? "text-primary" : !item.primary ? "text-muted-foreground" : ""
                   }`}
                   strokeWidth={active ? 2.5 : 2}

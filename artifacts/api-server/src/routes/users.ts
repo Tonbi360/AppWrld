@@ -55,4 +55,34 @@ router.patch("/admin/users/:id/role", async (req, res) => {
   res.json({ success: true, role: updated.role });
 });
 
+router.post("/users/me/become-developer", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  if (req.user.role !== "user") {
+    res.status(400).json({ error: "Already a developer or admin" });
+    return;
+  }
+
+  try {
+    const [updated] = await db
+      .update(usersTable)
+      .set({ role: "developer", updatedAt: new Date() })
+      .where(eq(usersTable.id, req.user.id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.json({ success: true, role: updated.role });
+  } catch (err) {
+    req.log.error({ err }, "Failed to upgrade user to developer");
+    res.status(500).json({ error: "Failed to upgrade role" });
+  }
+});
+
 export default router;

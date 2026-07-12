@@ -15,6 +15,7 @@ import Admin from "@/pages/admin";
 import DevPortal from "@/pages/dev";
 import Dashboard from "@/pages/dashboard";
 import StatusPage from "@/pages/status";
+import Profile from "@/pages/profile";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/submit" component={Submit} />
       <Route path="/feedback" component={FeedbackPage} />
       <Route path="/status/:id" component={StatusPage} />
+      <Route path="/profile" component={Profile} />
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
