@@ -11,11 +11,13 @@ import notificationsRouter from "./notifications";
 import usersRouter from "./users";
 import setupRouter from "./setup";
 import pushRouter from "./push";
+import emailAuthRouter from "./email-auth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(emailAuthRouter);
 router.use(appsRouter);
 router.use(reviewsRouter);
 router.use(submissionsRouter);

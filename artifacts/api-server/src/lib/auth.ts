@@ -71,6 +71,16 @@ export async function clearSession(res: Response, sid?: string): Promise<void> {
   res.clearCookie(SESSION_COOKIE, { path: "/" });
 }
 
+export function setSessionCookie(res: Response, sid: string) {
+  res.cookie(SESSION_COOKIE, sid, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_TTL,
+  });
+}
+
 export function getSessionId(req: Request): string | undefined {
   const authHeader = req.headers["authorization"];
   if (authHeader?.startsWith("Bearer ")) {
