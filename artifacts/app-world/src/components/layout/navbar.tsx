@@ -1,9 +1,8 @@
 import { Link, useLocation } from "wouter";
-import { Search, Globe, Menu, X, Sun, Moon } from "lucide-react";
+import { Search, Globe, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "@/lib/use-navigate";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme } from "@/lib/theme";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
@@ -12,7 +11,6 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { goTo } = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   const coreLinks = [
     { href: "/", label: "Discover" },
@@ -77,13 +75,6 @@ export function Navbar() {
               aria-label="Search"
             >
               <Search className="w-4 h-4" />
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
-              aria-label="Toggle theme"
-            >
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             {isAuthenticated && <NotificationBell />}
             <UserMenu />

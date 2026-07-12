@@ -64,7 +64,10 @@ function Footer() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
-              <span className="text-primary text-lg">&#128274;</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
             </div>
             <h2 className="text-sm font-semibold text-foreground mb-1">Access code required</h2>
             <p className="text-xs text-muted-foreground mb-4">Enter the admin passphrase to continue.</p>

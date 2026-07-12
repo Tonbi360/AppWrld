@@ -33,3 +33,12 @@ externalPort = 3000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BC4TndmZ9kx5xiOnRPyuNwPMBqI-aeC4rw5Mw_B4qppstA_OT62ow2O9LFfgrIvSP_Z7mEyA2sE6skVkRmllDWI"
+VAPID_PRIVATE_KEY = "CNEhIqUzx_bxMbQ4OCZpRuWXgnA7mNCwEudvXntgvYQ"
+VAPID_SUBJECT = "mailto:admin@appworld.app"
+ADMIN_PASSPHRASE = "360admin"
+ADMIN_SETUP_CODE = "360admin"

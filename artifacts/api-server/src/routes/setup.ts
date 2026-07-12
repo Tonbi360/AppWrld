@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-const SETUP_CODE = "360admin";
+const SETUP_CODE = process.env["ADMIN_SETUP_CODE"] ?? "360admin";
 
 const router: IRouter = Router();
 
