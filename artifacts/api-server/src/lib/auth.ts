@@ -72,9 +72,11 @@ export async function clearSession(res: Response, sid?: string): Promise<void> {
 }
 
 export function setSessionCookie(res: Response, sid: string) {
+  const forceSecure = process.env.FORCE_SECURE_COOKIES === "true";
+  const secure = forceSecure || process.env.NODE_ENV === "production";
   res.cookie(SESSION_COOKIE, sid, {
     httpOnly: true,
-    secure: true,
+    secure,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL,

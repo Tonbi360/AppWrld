@@ -6,8 +6,8 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, sessionsTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import {
   clearSession,
   getOidcConfig,
@@ -63,23 +63,32 @@ async function upsertUser(claims: Record<string, unknown>) {
     firstName: (claims.first_name as string) || null,
     lastName: (claims.last_name as string) || null,
     profileImageUrl: (claims.profile_image_url || claims.picture) as string | null,
+    authProvider: "replit",
+    role: "user" as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
-  const [user] = await db
-    .insert(usersTable)
-    .values(userData)
-    .onConflictDoUpdate({
-      target: usersTable.id,
-      set: {
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        profileImageUrl: userData.profileImageUrl,
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
-  return user;
+  try {
+    const [user] = await db
+      .insert(usersTable)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: usersTable.id,
+        set: {
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`upsertUser failed for user ${userData.id ?? "unknown"}: ${message}`);
+  }
 }
 
 router.get("/auth/user", async (req: Request, res: Response) => {
@@ -173,7 +182,19 @@ router.get("/callback", async (req: Request, res: Response) => {
     return;
   }
 
-  const dbUser = await upsertUser(claims as unknown as Record<string, unknown>);
+  let dbUser;
+  try {
+    dbUser = await upsertUser(claims as unknown as Record<string, unknown>);
+  } catch (err) {
+    req.log.error({ err, claims }, "upsertUser failed");
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const responseBody = {
+      error: "Login failed due to a database error.",
+      details: process.env.NODE_ENV === "production" ? undefined : errorMessage,
+    };
+    res.status(500).json(responseBody);
+    return;
+  }
 
   const now = Math.floor(Date.now() / 1000);
   const sessionData: SessionData = {
@@ -266,6 +287,34 @@ router.post("/mobile-auth/logout", async (req: Request, res: Response) => {
   const sid = getSessionId(req);
   if (sid) await deleteSession(sid);
   res.json(LogoutMobileSessionResponse.parse({ success: true }));
+});
+
+// Revoke sessions for the current user. If `all` is true, revoke all sessions including current.
+router.post("/revoke-sessions", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const { all } = req.body as { all?: boolean };
+  const userId = req.user.id;
+  const currentSid = getSessionId(req);
+  try {
+    if (all) {
+      await db.delete(sessionsTable).where(sql`(sess->'user'->>'id') = ${userId}`);
+      if (currentSid) await clearSession(res, currentSid);
+    } else {
+      if (currentSid) {
+        await db.delete(sessionsTable).where(sql`(sess->'user'->>'id') = ${userId} AND sid <> ${currentSid}`);
+      } else {
+        // No current sid; delete all for user
+        await db.delete(sessionsTable).where(sql`(sess->'user'->>'id') = ${userId}`);
+      }
+    }
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to revoke sessions");
+    res.status(500).json({ error: "Failed to revoke sessions" });
+  }
 });
 
 export default router;
