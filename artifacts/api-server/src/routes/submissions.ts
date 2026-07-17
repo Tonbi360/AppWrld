@@ -81,7 +81,8 @@ router.get("/submissions/mine", async (req, res) => {
       .from(submissionsTable)
       .where(eq(submissionsTable.submitterId, req.user.id))
       .orderBy(desc(submissionsTable.createdAt));
-    res.json(subs);
+    const mapped = subs.map((s) => ({ ...s, pwaReadiness: (s as any).lighthouseScore ?? 0 }));
+    res.json(mapped);
   } catch (err) {
     req.log.error({ err }, "Failed to load user submissions");
     res.json([]);
@@ -103,7 +104,7 @@ router.get("/submissions/:id", async (req, res) => {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    res.json(submission);
+    res.json({ ...submission, pwaReadiness: (submission as any).lighthouseScore ?? 0 });
   } catch (err) {
     req.log.error({ err }, "Failed to get submission");
     res.status(500).json({ error: "Failed to load submission" });
@@ -150,7 +151,7 @@ router.post("/submissions", async (req, res) => {
       })
       .returning();
 
-    res.status(201).json(submission);
+    res.status(201).json({ ...submission, pwaReadiness: (submission as any).lighthouseScore ?? 0 });
   } catch (err) {
     req.log.error({ err }, "Failed to create submission");
     res.status(500).json({ error: "Failed to submit app" });
@@ -172,6 +173,7 @@ router.post("/submissions/scrape-manifest", async (req, res) => {
     brandColor: result.brandColor,
     hasManifest: result.hasManifest,
     lighthouseScore: result.lighthouseScore,
+    pwaReadiness: result.lighthouseScore,
     isInstallable: result.hasManifest,
   });
 });

@@ -20,7 +20,9 @@ router.get("/admin/queue", async (req, res) => {
         sql`${submissionsTable.status} NOT IN ('approved', 'rejected')`
       )
       .orderBy(desc(submissionsTable.createdAt));
-    res.json(queue);
+    // Backwards-compatible alias for the new metric name
+    const mapped = queue.map((q) => ({ ...q, pwaReadiness: (q as any).lighthouseScore ?? 0 }));
+    res.json(mapped);
   } catch (err) {
     req.log.error({ err }, "Failed to get admin queue");
     res.json([]);
@@ -215,8 +217,11 @@ router.get("/admin/export", async (req, res) => {
         createdAt: usersTable.createdAt,
       }).from(usersTable),
     ]);
+    // Include alias for pwaReadiness to avoid breaking frontends during migration
+    const appsMapped = apps.map((a) => ({ ...a, pwaReadiness: (a as any).lighthouseScore ?? 0 }));
+    const submissionsMapped = submissions.map((s) => ({ ...s, pwaReadiness: (s as any).lighthouseScore ?? 0 }));
     res.setHeader("Content-Disposition", `attachment; filename="appworld-export-${Date.now()}.json"`);
-    res.json({ exportedAt: new Date().toISOString(), apps, submissions, reviews, logbook, feedback, users });
+    res.json({ exportedAt: new Date().toISOString(), apps: appsMapped, submissions: submissionsMapped, reviews, logbook, feedback, users });
   } catch (err) {
     req.log.error({ err }, "Failed to export data");
     res.status(500).json({ error: "Export failed" });
