@@ -211,7 +211,7 @@ export default function Admin() {
                       </a>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="text-[10px] text-muted-foreground">Lighthouse</span>
+                      <span className="text-[10px] text-muted-foreground">PWA readiness</span>
                       <div className={`text-sm font-bold ${sub.lighthouseScore >= 85 ? "text-green-400" : "text-amber-400"}`}>
                         {sub.lighthouseScore}
                       </div>

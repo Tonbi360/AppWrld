@@ -136,8 +136,8 @@ export default function Submit() {
                 <ul className="space-y-1.5 text-xs text-muted-foreground">
                   {[
                     "Must have a valid manifest.json (PWA installable)",
-                    "Lighthouse score 80+ (auto-checked)",
-                    "Must be a web app — not a blog or landing page",
+                    "PWA readiness score 50+ (auto-checked)",
+                    "Must have a valid install icon and display mode",
                     "Must have a unique value proposition",
                   ].map((req) => (
                     <li key={req} className="flex items-start gap-1.5">
@@ -162,7 +162,7 @@ export default function Submit() {
                 )}
                 <div>
                   <p className="text-sm font-medium text-foreground">{scraped.hasManifest ? "Manifest detected" : "No manifest"}</p>
-                  <p className="text-xs text-muted-foreground">Lighthouse score: {scraped.lighthouseScore}</p>
+                  <p className="text-xs text-muted-foreground">PWA readiness: {scraped.lighthouseScore}</p>
                 </div>
                 <CheckCircle className="w-4 h-4 text-green-400 ml-auto" />
               </div>

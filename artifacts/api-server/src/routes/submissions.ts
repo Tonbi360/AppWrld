@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { submissionsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { SubmitAppBody, ScrapeManifestBody } from "@workspace/api-zod";
+import { calculatePwaReadiness, fetchPublicUrl, readResponseText } from "../lib/urlSafety";
 
 const router = Router();
 
@@ -22,8 +23,8 @@ async function detectManifest(url: string): Promise<{
   let lighthouseScore = 0;
 
   try {
-    const pageResp = await fetch(url, { signal: AbortSignal.timeout(7000) });
-    const html = await pageResp.text();
+    const pageResp = await fetchPublicUrl(url, 7000);
+    const html = await readResponseText(pageResp);
 
     const manifestMatch =
       html.match(/<link[^>]+rel=["']manifest["'][^>]+href=["']([^"']+)["']/i) ??
@@ -32,11 +33,11 @@ async function detectManifest(url: string): Promise<{
     const manifestHref = manifestMatch?.[1] ?? "/manifest.json";
     const manifestUrl = new URL(manifestHref, url).toString();
 
-    const manifestResp = await fetch(manifestUrl, { signal: AbortSignal.timeout(5000) });
+    const manifestResp = await fetchPublicUrl(manifestUrl, 5000);
     if (manifestResp.ok) {
-      const manifest = await manifestResp.json() as Record<string, unknown>;
+      const manifest = JSON.parse(await readResponseText(manifestResp)) as Record<string, unknown>;
       hasManifest = true;
-      lighthouseScore = Math.floor(Math.random() * 15) + 82;
+      lighthouseScore = calculatePwaReadiness(manifest);
 
       if (manifest.name) name = String(manifest.name);
       if (manifest.description) description = String(manifest.description);
@@ -52,11 +53,11 @@ async function detectManifest(url: string): Promise<{
     // network/parse error — try direct manifest.json as fallback
     try {
       const manifestUrl = new URL("/manifest.json", url).toString();
-      const resp = await fetch(manifestUrl, { signal: AbortSignal.timeout(4000) });
+      const resp = await fetchPublicUrl(manifestUrl, 4000);
       if (resp.ok) {
-        const manifest = await resp.json() as Record<string, unknown>;
+        const manifest = JSON.parse(await readResponseText(resp)) as Record<string, unknown>;
         hasManifest = true;
-        lighthouseScore = Math.floor(Math.random() * 15) + 82;
+        lighthouseScore = calculatePwaReadiness(manifest);
         if (manifest.name) name = String(manifest.name);
         if (manifest.description) description = String(manifest.description);
         if (manifest.theme_color) brandColor = String(manifest.theme_color);
